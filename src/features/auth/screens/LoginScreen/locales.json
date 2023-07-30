@@ -1,0 +1,7 @@
+{
+  "input_email": "Email",
+  "input_password": "Password",
+  "submit": "Submit",
+  "required": "Required field",
+  "invalid_email": "Email is invalid"
+}
