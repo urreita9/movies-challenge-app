@@ -1,9 +1,11 @@
 import axios from "axios"
+import { login as loginEndpoint } from "./api"
 import { LoginBody } from "./interfaces"
+import { baseUrl } from "./config"
 
 export const authApi = axios.create({
-  baseURL: process.env.REACT_APP_AUTH_BASE_URL || "http://localhost:8080",
+  baseURL: baseUrl,
 })
 
 export const login = async (body: LoginBody): Promise<void> =>
-  await authApi.post("/login", body)
+  await authApi.post(loginEndpoint, body)

@@ -1,23 +1,30 @@
-import {
-  render,
-  screen,
-  fireEvent,
-  waitFor,
-} from "@testing-library/react-native"
+import { screen, fireEvent, waitFor } from "@testing-library/react-native"
+import "@testing-library/jest-native"
 import LoginScreen from "./LoginScreen"
 import locales from "./locales.json"
 import { renderWithProviders } from "../../../../test-utils/renderWithProviders"
-import { login } from "../../services/auth"
+import { server } from "../../../../mocks/server"
+import { rest } from "msw"
+import { baseUrl } from "../../services/config"
+import { storeToken } from "../../utils"
+import { MOCKED_TOKEN } from "../../services/constants"
 
-jest.mock("../../services/auth", () => ({
-  __esModule: true,
-  login: jest.fn(),
+jest.mock("../../utils", () => ({
+  storeToken: jest.fn(),
 }))
+
+const mockServerWithError = (statusCode: number) => {
+  server.use(
+    rest.post(`${baseUrl}/login`, (req, res, ctx) =>
+      res(ctx.delay(1), ctx.status(statusCode), ctx.json("error api"))
+    )
+  )
+}
 
 const getEmailInput = () => screen.getByPlaceholderText(locales.input_email)
 const getPasswordInput = () =>
   screen.getByPlaceholderText(locales.input_password)
-const getSubmitBtn = () => screen.getByText(locales.submit)
+const getSubmitBtn = () => screen.getByTestId("login_submit_btn")
 
 describe("When Login Screen mounts", () => {
   it("should display app logo", () => {
@@ -58,8 +65,20 @@ describe("When Login form is submited with errors", () => {
   })
 })
 
-describe("When Login form is submited correctly", () => {
-  it("should fetch login with email and password", async () => {
+describe("When Login form is submited correctly and", () => {
+  it("should  disable submit mutton", async () => {
+    renderWithProviders(<LoginScreen />)
+
+    expect(getSubmitBtn()).not.toBeDisabled()
+
+    fireEvent.changeText(getEmailInput(), "email@email.com")
+    fireEvent.changeText(getPasswordInput(), "123456")
+
+    fireEvent.press(getSubmitBtn())
+
+    await waitFor(() => expect(getSubmitBtn()).toBeDisabled())
+  })
+  it.only("should fetch login with email and password and save token on response status 200", async () => {
     renderWithProviders(<LoginScreen />)
 
     fireEvent.changeText(getEmailInput(), "email@email.com")
@@ -67,15 +86,17 @@ describe("When Login form is submited correctly", () => {
 
     fireEvent.press(getSubmitBtn())
 
-    await waitFor(() =>
-      expect(login).toHaveBeenCalledWith({
-        email: "email@email.com",
-        password: "123456",
-      })
-    )
+    await waitFor(() => expect(storeToken).toHaveBeenCalledWith(MOCKED_TOKEN))
   })
-  it("should show error message when user is unauthoirized (response status 401)", () => {
-    const loginError = require("../../services/auth")
-    loginError.mockImplementation()
+  it("should show error message when user is unauthoirized (response status 401)", async () => {
+    mockServerWithError(401)
+    renderWithProviders(<LoginScreen />)
+
+    fireEvent.changeText(getEmailInput(), "email@email.com")
+    fireEvent.changeText(getPasswordInput(), "123456")
+
+    fireEvent.press(getSubmitBtn())
+
+    expect(await screen.findByText("error api"))
   })
 })
