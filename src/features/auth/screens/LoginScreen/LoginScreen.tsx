@@ -2,19 +2,18 @@ import React, { useState } from "react"
 import { StyleSheet, TextInput, TouchableOpacity, Text } from "react-native"
 import { Formik } from "formik"
 import * as Yup from "yup"
-import { useMutation } from "react-query"
-import { AxiosResponse } from "axios"
+import type { NativeStackScreenProps } from "@react-navigation/native-stack"
 import Logo from "../../../../components/Logo/Logo"
 import locales from "./locales.json"
-import { login } from "../../services/auth"
-import { LoginBody } from "../../services/interfaces"
+import { useLoginMutation } from "./useLoginMutation"
 import { storeToken } from "../../utils"
+import { RootStackParamList } from "../../../AppNavigator/types"
 
-export default function LoginScreen() {
+type Props = NativeStackScreenProps<RootStackParamList, "Login">
+
+const LoginScreen = ({ navigation }: Props) => {
   const [errorMessage, setErrorMessage] = useState("")
-  const mutation = useMutation({
-    mutationFn: async (body: LoginBody) => await login(body),
-  })
+  const mutation = useLoginMutation()
   return (
     <>
       <Logo />
@@ -23,13 +22,12 @@ export default function LoginScreen() {
         initialValues={{ email: "", password: "" }}
         onSubmit={(values) => {
           mutation.mutate(values, {
-            onError: (error: any) => {
-              console.log("ERROR", error.data)
-              setErrorMessage(error.response.data)
+            onSuccess: async (res) => {
+              await storeToken(res.data.token)
+              navigation.navigate("Home")
             },
-            onSuccess: (res: any) => {
-              console.log("holo", res.data.token)
-              storeToken(res.data.token)
+            onError: (error: any) => {
+              setErrorMessage(error.response.data)
             },
           })
         }}
@@ -60,7 +58,6 @@ export default function LoginScreen() {
               onPress={handleSubmit as any}
               disabled={mutation.isLoading}
               testID='login_submit_btn'
-              aria-label='button'
             >
               <Text>Submit</Text>
             </TouchableOpacity>
@@ -72,3 +69,5 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({})
+
+export default LoginScreen
